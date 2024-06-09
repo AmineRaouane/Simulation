@@ -2,52 +2,77 @@ import heapq
 import random
 import numpy as np
 
+def alea(IX,IY,IZ):
+  # Opérations modulo pour maintenir IX, IY et IZ dans l'intervalle [0, 176]
+  IX = 171*(IX % 177) - 2 * (IX // 177) #type:ignore
+  IY = 172*(IY % 176) - 35 * (IY // 176) #type:ignore
+  IZ = 170*(IZ % 178) - 63 * (IZ // 178) #type:ignore
+
+  # Ajouter 30269, 30307 et 30323 si IX, IY ou IZ est négatif
+  if IX < 0:
+    IX += 30269
+  if IY < 0:
+    IY += 30307
+  if IZ < 0:
+    IZ += 30323
+  # Calculer la valeur intermédiaire
+  inter = (IX / 30269) + (IY / 30307) + (IZ / 30323)
+  # Retourner la partie fractionnaire de la valeur intermédiaire et les nouvelles valeurs de IX, IY et IZ
+  return [inter - int(inter),IX,IY,IZ]
+
+def draw_from_distribution(IX,IY,IZ,values, probabilities):
+    # return random.choices(values, probabilities)[0]
+    x,IX,IY,IZ = alea(IX,IY,IZ)#type:ignore
+    for idx, cum_prob in enumerate(np.cumsum(probabilities)):
+        if x <= cum_prob:
+            return (values[idx],IX,IY,IZ)
+    return (x,IX,IY,IZ)
+
+def is_peak_period(time):
+        return (12 * 60 <= time < 15 * 60) or (18 * 60 <= time < 21 * 60)
 
 def Single_simulation(current_time,
     last_queue_length_update_time,
-    total_customers ,
-    lost_customers ,
-    normal_period_customers ,
-    peak_period_customers ,
-    same_time_arrivals ,
-    not_payed_customers ,
-    total_waiting_time ,
-    total_queue_length ,
-    time_with_max_one_customer ,
-    total_system_time ,
-    customer_times,
-    ARRIVAL ,
-    SHOPPING_DONE ,
-    PAYMENT_DONE_C1 ,
-    PAYMENT_DONE_C2 ,
-    PAYMENT_DONE_C3,
-    open_time,
-    close_time,
     events,
     queue,
-    normal_arrival_intervals,
-    normal_arrival_probabilities ,
-    peak_arrival_intervals,
-    peak_arrival_probabilities,
-    shopping_times,
-    shopping_probabilities,
-    payment_times,
-    payment_probabilities,
-    prob_no_payment,
-    counter_1_busy,
-    counter_2_busy,
-    counter_1_utilization_time,
-    counter_2_utilization_time,
-    counter_3_busy,
-    counter_3_utilization_time,
-    alea,
-    draw_from_distribution,
-    is_peak_period,
     schedule_event,
+    customer_times ,
     IX,
     IY,
     IZ,
-    Caisses):
+    Caisses,
+    open_time = 9 * 60 , 
+    close_time = 21 * 60,  
+    counter_1_busy = False,
+    counter_2_busy = False,
+    counter_1_utilization_time = 0,
+    counter_2_utilization_time = 0,
+    counter_3_busy = False,
+    counter_3_utilization_time = 0,
+    total_customers = 0,
+    lost_customers = 0,
+    normal_period_customers = 0,
+    peak_period_customers = 0,
+    same_time_arrivals = 0,
+    not_payed_customers = 0,
+    total_waiting_time = 0,
+    total_queue_length = 0,
+    time_with_max_one_customer = 0,
+    total_system_time = 0,
+    ARRIVAL = "arrival",
+    SHOPPING_DONE = "shopping_done",
+    PAYMENT_DONE_C1 = "payment_done_c1",
+    PAYMENT_DONE_C2 = "payment_done_c2",
+    PAYMENT_DONE_C3 = "payment_done_c3",
+    normal_arrival_intervals = [1, 2, 3, 4, 5, 6],
+    normal_arrival_probabilities = [0.30, 0.50, 0.10, 0.05, 0.03, 0.02],
+    peak_arrival_intervals = [0, 1, 2, 3],
+    peak_arrival_probabilities = [0.15, 0.30, 0.40, 0.15],
+    shopping_times = [2, 4, 6, 8, 10],
+    shopping_probabilities = [0.10, 0.20, 0.40, 0.20, 0.10],
+    payment_times = [1, 2, 3, 4],
+    payment_probabilities = [0.20, 0.40, 0.25, 0.15],
+    prob_no_payment = 0.15):
 
     while current_time < close_time or events:
         # Get next event
