@@ -7,7 +7,6 @@ def alea(IX,IY,IZ):
   IY = 172*(IY % 176) - 35 * (IY // 176) #type:ignore
   IZ = 170*(IZ % 178) - 63 * (IZ // 178) #type:ignore
 
-  # Ajouter 30269, 30307 et 30323 si IX, IY ou IZ est négatif
   if IX < 0:
     IX += 30269
   if IY < 0:
@@ -16,7 +15,6 @@ def alea(IX,IY,IZ):
     IZ += 30323
   # Calculer la valeur intermédiaire
   inter = (IX / 30269) + (IY / 30307) + (IZ / 30323)
-  # Retourner la partie fractionnaire de la valeur intermédiaire et les nouvelles valeurs de IX, IY et IZ
   return [inter - int(inter),IX,IY,IZ]
 
 def draw_from_distribution(IX,IY,IZ,values, probabilities):
@@ -25,6 +23,7 @@ def draw_from_distribution(IX,IY,IZ,values, probabilities):
     cum_probs = np.cumsum(probabilities)
     idx = np.searchsorted(cum_probs, x)
     return (values[idx], IX, IY, IZ)
+    
 
 def is_peak_period(time,close_time):
         return (12 * 60 <= time < 15 * 60) or (18 * 60 <= time < close_time)
@@ -132,4 +131,3 @@ def Single_simulation(current_time, last_queue_length_update_time, events, queue
     ]
 
 #cols=['PN', 'PP', 'NCE','NCP','NCAMT','NCNPC','TATmoy','LMQ','TMaxQ1','TSmoy','TauxC1','TauxC2']
-

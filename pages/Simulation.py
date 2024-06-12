@@ -7,8 +7,18 @@ from scipy import stats
 from scipy.stats import f_oneway
 import matplotlib.pyplot as plt
 import seaborn as sns
+import time
 
-st.title("Simulation supermarché")
+import sys
+import os
+
+
+
+# Add the parent directory to sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+
+
 st.header("Parameteres de la simulation")
 
 c1, c2 ,c3= st.columns(3)
@@ -45,7 +55,6 @@ def schedule_event(events,time, event_type, customer_id):
         else :
             customer_times[customer_id][1] = time
 
-
 for i in range(int(num_simulations)):
     events,queue,customer_times,total_customers,current_time,last_queue_length_update_time = initialize()
     # Initial event: first customer arrival
@@ -70,7 +79,6 @@ for i in range(int(num_simulations)):
     # Initial event: first customer arrival
     schedule_event(events,current_time, ARRIVAL, total_customers)
 
-    # Simulation loop
     Result3 = Single_simulation(current_time,
     last_queue_length_update_time,
     events,
@@ -160,8 +168,6 @@ def perform_Ttest(df2, df3, column):
 
     return Ttest_result.statistic, Ttest_result.pvalue
 
-
-
 @st.experimental_fragment
 def Simulation(i):
     st.header(f"Résultat de simulation de {i} Caisses")
@@ -204,15 +210,15 @@ def Comparaison():
 
     F_statistic, p_value = perform_Ttest(df2, df3, option)
     treshold = st.slider("F-statistic threshold", 0.0, 0.2, 0.05, 0.01)
-    
-    st.write(f"**T_test Results for column {option}:**")
-    st.write(f"F-statistic: {F_statistic:.2f}")
-    st.write(f"p-value: {p_value:.4f}")
+    P1,P2,P3  = st.columns([1.5,3.5,0.5])
+    P2.write(f"**T_test Results for column {option}:**")
+    P2.write(f"F-statistic: {F_statistic:.2f}")
+    P2.write(f"p-value: {p_value:.4f}")
     
     if p_value <= treshold:
-        st.write("**Conclusion:** There is a statistically significant difference between the means.")
+        P2.write("**Conclusion:** There is a statistically significant difference between the means.")
     else:
-        st.write("**Conclusion:** There is no statistically significant difference between the means.")
+        P2.write("**Conclusion:** There is no statistically significant difference between the means.")
 
 
 with st.sidebar:
@@ -221,9 +227,10 @@ with st.sidebar:
     ('2 Caisses Simulation', '3 Caisses Simulation', 'Comparaison')
 )
 
+
 if page == '2 Caisses Simulation':
-    Simulation(2)
+        Simulation(2)
 elif page == '3 Caisses Simulation':
-    Simulation(3)
+        Simulation(3)
 elif page == 'Comparaison':
-    Comparaison()
+        Comparaison()
