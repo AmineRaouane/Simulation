@@ -4,6 +4,7 @@ import numpy as np
 from Single_simulation import Single_simulation
 import streamlit as st
 from scipy import stats
+from scipy.stats import f_oneway
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -16,12 +17,18 @@ IX = c1.number_input("IX :",value=10, min_value=1, max_value=30000)
 IY = c2.number_input("IY :",value=20, min_value=1, max_value=30000)
 IZ = c3.number_input("IZ :",value=30, min_value=1, max_value=30000)
 
-dIX = c1.number_input("dIX :",value=7, min_value=1, max_value=20)
-dIY = c2.number_input("dIY :",value=13, min_value=1, max_value=20)
-dIZ = c3.number_input("dIZ :",value=17, min_value=1, max_value=20)
+dIX = c1.number_input("dIX :",value=5, min_value=1, max_value=20)
+dIY = c2.number_input("dIY :",value=7, min_value=1, max_value=20)
+dIZ = c3.number_input("dIZ :",value=11, min_value=1, max_value=20)
 
-num_simulations = c2.number_input("num_simulations :",value=1,min_value=1, max_value=100)
-open_time = 9 * 60 
+a1, a2,a3,a4= st.columns(4)
+opening = a1.number_input("open_time :",value=9,min_value=7, max_value=11)
+closing = a2.number_input("close_time :",value=21,min_value=19, max_value=23)
+num_simulations = a3.number_input("num_simulations :",value=40,min_value=1, max_value=100)
+prob_no_payment = a4.number_input("prob_no_payment :",value=0.15,min_value=0.1, max_value=0.3)
+
+open_time = opening*60
+close_time = closing*60
 ARRIVAL = "arrival"
 cols=['PN', 'PP', 'NCE','NCP','NCAMT','NCNPC','TATmoy','LMQ','TMaxQ1','TSmoy','TauxC1','TauxC2']
 Plots = ["Box Plot","Line Plot","Heatmap","Histogram","Violin Plot"]
@@ -31,17 +38,18 @@ df3 = pd.DataFrame(columns=cols+['TauxC3'])
 def initialize():
     return ([],[],[[0,0] for _ in range(2000)],0,open_time,open_time)
 
-def schedule_event(time, event_type, customer_id):
+def schedule_event(events,time, event_type, customer_id):
         heapq.heappush(events, (time, event_type, customer_id))
         if event_type == ARRIVAL :
             customer_times[customer_id][0] = time
         else :
             customer_times[customer_id][1] = time
 
+
 for i in range(int(num_simulations)):
     events,queue,customer_times,total_customers,current_time,last_queue_length_update_time = initialize()
     # Initial event: first customer arrival
-    schedule_event(current_time, ARRIVAL, total_customers)
+    schedule_event(events,current_time, ARRIVAL, total_customers)
     # Simulation loop
     Result2 = Single_simulation(current_time,
     last_queue_length_update_time,
@@ -51,12 +59,16 @@ for i in range(int(num_simulations)):
     customer_times,
     IX,
     IY,
-    IZ,2)
+    IZ,
+    2,
+    open_time,
+    close_time,
+    prob_no_payment)
     
     df2 = pd.concat([df2, pd.DataFrame([Result2], columns=cols)], ignore_index=True)
     events,queue,customer_times,total_customers,current_time,last_queue_length_update_time = initialize()
     # Initial event: first customer arrival
-    schedule_event(current_time, ARRIVAL, total_customers)
+    schedule_event(events,current_time, ARRIVAL, total_customers)
 
     # Simulation loop
     Result3 = Single_simulation(current_time,
@@ -67,11 +79,17 @@ for i in range(int(num_simulations)):
     customer_times,
     IX,
     IY,
-    IZ,3)
+    IZ,
+    3,
+    open_time,
+    close_time,
+    prob_no_payment)
     
     df3 = pd.concat([df3, pd.DataFrame([Result3], columns=cols+['TauxC3'])], ignore_index=True)
 
     IX,IY,IZ = IX+dIX,IY+dIY,IZ+dIZ
+
+Data = {2:df2,3:df3}
 
 def Plot(df, option, column):
     fig, ax = plt.subplots(figsize=(16, 9))
@@ -109,7 +127,10 @@ def Plot(df, option, column):
 
     return fig
 
-def Stats(df,option,confidence_level):
+@st.experimental_fragment
+def Stats(df,option):
+    st.subheader("Statistiques")
+    confidence_level = st.slider("Confidence level", 0.8, 1.0, 0.95, 0.01)
     sample_mean = df[option].mean()
     sample_std = df[option].std()
     n = len(df[option])
@@ -129,59 +150,44 @@ def Stats(df,option,confidence_level):
     ax.set_xlabel('Values')
     ax.set_ylabel('Frequency')
     ax.legend()
-    return fig
+    st.pyplot(fig)
+
+def perform_Ttest(df2, df3, column):
+    data1 = df2[column]
+    data2 = df3[column]
+
+    Ttest_result = f_oneway(data1, data2)
+
+    return Ttest_result.statistic, Ttest_result.pvalue
 
 
-st.header("Résultat de simulation")
-def Simulation_2():
-    st.subheader("2 Caisses simulation")
-    st.dataframe(df2)
-    st.dataframe(pd.concat([df2.mean().to_frame().T.rename(index={0: 'avg'}),
-                        df2.min().to_frame().T.rename(index={0: 'min'}),
-                        df2.max().to_frame().T.rename(index={0: 'max'}),
-                        df2.std().to_frame().T.rename(index={0: 'std'})]))
-    
+
+@st.experimental_fragment
+def Simulation(i):
+    st.header(f"Résultat de simulation de {i} Caisses")
+    st.subheader(f"{i} Caisses simulation")
+    st.dataframe(Data[i],use_container_width=True)
+    st.dataframe(Data[i].describe(),use_container_width=True)
+
     st.subheader("Visualisation des données")
     col1,col2 = st.columns(2)
-    option1 = col1.selectbox("Selectionner l'indicateur à analyser",cols,key="option1")
+    option = col1.selectbox("Selectionner l'indicateur à analyser",list(Data[i]),key="option")
     plot_type = col2.selectbox("Selectionner le type de plot",Plots,key="plot_type1")
-    fig = Plot(df2,plot_type,option1)
+    fig = Plot(Data[i],plot_type,option)
     st.pyplot(fig)
-    st.subheader("Statistiques")
-    confidence_level = st.slider("Confidence level", 0.8, 1.0, 0.95, 0.01)
-    fig = Stats(df2,option1,confidence_level)
-    st.pyplot(fig)
+    Stats(Data[i],option)
 
-def Simulation_3():
-    st.subheader("3 Caisses simulation")
-    st.dataframe(df3)
-    st.dataframe(pd.concat([df3.mean().to_frame().T.rename(index={0: 'avg'}),
-                        df3.min().to_frame().T.rename(index={0: 'min'}),
-                        df3.max().to_frame().T.rename(index={0: 'max'}),
-                        df3.std().to_frame().T.rename(index={0: 'std'})]))
-    st.subheader("Visualisation des données")
-    col1,col2 = st.columns(2)
-    option2 = col1.selectbox("Select the indicator to visualize?",cols+['TauxC3'],key="option2" )
-    plot_type = col2.selectbox("Selectionner le type de plot",Plots,key="plot_type2")
-    fig = Plot(df3,plot_type,option2)
-    st.pyplot(fig)
-    st.subheader("Statistiques")
-    confidence_level = st.slider("Confidence level", 0.8, 1.0, 0.95, 0.01)
-    fig = Stats(df3,option2,confidence_level)
-    st.pyplot(fig)
-
+@st.experimental_fragment
 def Comparaison():
-# Comparison of the two simulations
-    st.subheader("Comparison des simulations")
+    st.header("Comparison des simulations")
     col1,col2 = st.columns(2)
-    option = col1.selectbox("Select the indicator to visualize?",cols+['TauxC3'],key="option2" )
+    option = col1.selectbox("Select the indicator to visualize?",cols,key="option2" )
     plot_type = col2.selectbox("Selectionner le type de plot",["Box Plot","Line Plot"],key="comparison_option")
     df2_renamed = df2.rename(columns={option: f'{option} (2 caisses)'})
     df3_renamed = df3.rename(columns={option: f'{option} (3 caisses)'})
     combined_df = pd.concat([df2_renamed[f'{option} (2 caisses)'], df3_renamed[f'{option} (3 caisses)']], axis=1)
-
+    fig, ax = plt.subplots(figsize=(16, 9))
     if plot_type == "Box Plot":
-        fig, ax = plt.subplots(figsize=(16, 9))
         sns.boxplot(data=combined_df, ax=ax)
         ax.set_title(f'Box Plot of {option} for 2 and 3 Caisses Simulations', fontsize=16)
         ax.set_xlabel('Values', fontsize=14)
@@ -189,7 +195,6 @@ def Comparaison():
         ax.legend()
         st.pyplot(fig)
     else :
-        fig, ax = plt.subplots(figsize=(16, 9))
         sns.lineplot(data=combined_df, ax=ax, marker='o')
         ax.set_title(f'Line Plot of {option} for 2 and 3 Caisses Simulations', fontsize=16)
         ax.set_xlabel('Simulation Run', fontsize=14)
@@ -197,17 +202,28 @@ def Comparaison():
         ax.legend()
         st.pyplot(fig)
 
+    F_statistic, p_value = perform_Ttest(df2, df3, option)
+    treshold = st.slider("F-statistic threshold", 0.0, 0.2, 0.05, 0.01)
+    
+    st.write(f"**T_test Results for column {option}:**")
+    st.write(f"F-statistic: {F_statistic:.2f}")
+    st.write(f"p-value: {p_value:.4f}")
+    
+    if p_value <= treshold:
+        st.write("**Conclusion:** There is a statistically significant difference between the means.")
+    else:
+        st.write("**Conclusion:** There is no statistically significant difference between the means.")
+
 
 with st.sidebar:
-    st.subheader("Navigation")
     page = st.radio(
-    "Go to",
+    "Navigation",
     ('2 Caisses Simulation', '3 Caisses Simulation', 'Comparaison')
 )
 
 if page == '2 Caisses Simulation':
-    Simulation_2()
+    Simulation(2)
 elif page == '3 Caisses Simulation':
-    Simulation_3()
-else:
+    Simulation(3)
+elif page == 'Comparaison':
     Comparaison()
